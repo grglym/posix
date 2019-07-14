@@ -28,6 +28,13 @@ int main(void)
 	servaddr.sin_port = htons(5188);
 	servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
+	int on = 1;
+	if(setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)
+	{
+		ERR_EXIT("setsockopt");
+	}
+
+
 	if((bind(listenfd, (struct sockaddr*) &servaddr, sizeof(servaddr))) < 0) 
 	{
 		ERR_EXIT("bind");
@@ -44,6 +51,8 @@ int main(void)
 	{
 		ERR_EXIT("accept");
 	}
+	
+	printf("ip=%s port=%d\n", inet_ntoa(peeraddr.sin_addr), ntohs(peeraddr.sin_port));
 	
 	char recvbuf[1024]={0};
 	while(1)
