@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <signal.h>
 
 #define ERR_EXIT(m) \
 	do \
@@ -124,10 +125,14 @@ ssize_t readline(int sockfd, void *buf, size_t maxline)
         return -1;
 }
 
-
+void handle_sigpipe(int sig)
+{
+    printf("recv a sig=%d\n", sig);
+}
 
 int main(void)
 {
+    signal(SIGPIPE, handle_sigpipe);
 	//int listenfd;
 	int sock;
 	if ((sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
@@ -188,13 +193,16 @@ int main(void)
         maxfd = fd_stdin;
     else 
         maxfd = sock;
-
+    int stdineof = 0;
     char sendbuf[1024] = {0};
     char recvbuf[1024] = {0};
+    
+    memset(sendbuf, 0, sizeof(sendbuf));
+    memset(recvbuf, 0, sizeof(recvbuf));
 
     while (1) {
-
-        FD_SET(fd_stdin, &rset);
+        if (stdineof == 0)
+            FD_SET(fd_stdin, &rset);
         FD_SET(sock, &rset);
         nready = select(maxfd+1, &rset, NULL, NULL, NULL);
         if (nready == -1)
@@ -217,11 +225,12 @@ int main(void)
         }
         if (FD_ISSET(fd_stdin, &rset)) {
 
-            if (fgets(sendbuf, sizeof(sendbuf), stdin) != NULL) {
-                close(sock);
-                sleep(5);
-                exit(EXIT_FAILURE);
-                //shutdown(sock, SHUT_WR);
+            if (fgets(sendbuf, sizeof(sendbuf), stdin) == NULL) {
+                stdineof = 1;
+                //close(sock);
+                //sleep(5);
+                //exit(EXIT_FAILURE);
+                shutdown(sock, SHUT_WR);
             } else {
                 writen(sock, sendbuf, strlen(sendbuf));
                 memset(sendbuf, 0, sizeof(sendbuf));

@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <signal.h>
 
 #define ERR_EXIT(m) \
 	do \
@@ -153,8 +154,13 @@ void do_service(int conn)
                 writen(conn, recvbuf, strlen(recvbuf));	
 	}
 }
+void handle_sigpipe(int sig)
+{
+    printf("recv a sig=%d\n", sig);
+}
 int main(void)
 {
+    signal(SIGPIPE, handle_sigpipe);
 	int listenfd;
 	if ((listenfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
 	{
@@ -288,8 +294,10 @@ int main(void)
                     printf("client close\n");
                     FD_CLR(conn, &allset);
                     client[i] = -1;
+                    close(conn);
                 }
                 fputs(recvbuf, stdout);
+                sleep(4);
                 writen(conn, recvbuf, strlen(recvbuf));
                 if (--nready <= 0)
                     break;
